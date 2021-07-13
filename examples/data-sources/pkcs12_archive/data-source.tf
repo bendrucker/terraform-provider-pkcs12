@@ -14,7 +14,7 @@ output "private_key" {
 
 data "pkcs12_archive" "to_archive" {
   certificate = file("./cert.pem")
-  private_key = file("./key.pem") 
+  private_key = file("./key.pem")
   password    = ""
 }
 
