@@ -1,4 +1,4 @@
-module github.com/hashicorp/terraform-provider-scaffolding
+module github.com/bendrucker/terraform-provider-pkcs12
 
 go 1.15
 

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/x509"
@@ -57,10 +58,12 @@ func dataSourceArchiveRead(ctx context.Context, d *schema.ResourceData, meta int
 			return diag.Errorf("failed to decode archive as base64: %v", err)
 		}
 
-		key, cert, err := pkcs12.Decode(archive, password)
+		key, cert, cas, err := pkcs12.DecodeChain(archive, password)
 		if err != nil {
 			return diag.Errorf("failed to decode PKCS12 archive: %v", err)
 		}
+
+		certs := append([]*x509.Certificate{cert}, cas...)
 
 		keyBytes, err := x509.MarshalPKCS8PrivateKey(key)
 		if err != nil {
@@ -72,10 +75,7 @@ func dataSourceArchiveRead(ctx context.Context, d *schema.ResourceData, meta int
 			Bytes: keyBytes,
 		})))
 
-		d.Set("certificate", string(pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
-		})))
+		d.Set("certificate", string(encodeCertificates(certs...)))
 
 		d.SetId(cert.SerialNumber.String())
 		return nil
@@ -84,28 +84,63 @@ func dataSourceArchiveRead(ctx context.Context, d *schema.ResourceData, meta int
 	certPem := d.Get("certificate").(string)
 	keyPem := d.Get("private_key").(string)
 
-	certBlock, _ := pem.Decode([]byte(certPem))
-	keyBlock, _ := pem.Decode([]byte(keyPem))
+	certs := []*x509.Certificate{}
 
-	cert, err := x509.ParseCertificate(certBlock.Bytes)
-	if err != nil {
-		return diag.Errorf("failed to parse certificate: %v", err)
+	for _, block := range findBlocksByType([]byte(certPem), "CERTIFICATE") {
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			return diag.Errorf("failed to parse certificate: %v", err)
+		}
+
+		certs = append(certs, cert)
 	}
+
+	keyBlock, _ := pem.Decode([]byte(keyPem))
 
 	key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
 	if err != nil {
 		return diag.Errorf("failed to parse private key: %v", err)
 	}
 
-	caCerts := []*x509.Certificate{} // TODO: support CA certs
-
-	b, err := pkcs12.Encode(rand.Reader, key, cert, caCerts, password)
+	b, err := pkcs12.Encode(rand.Reader, key, certs[0], certs[1:], password)
 	if err != nil {
 		return diag.Errorf("failed to encode PKCS12 archive: %v", err)
 	}
 
-	d.SetId(cert.SerialNumber.String())
+	d.SetId(certs[0].SerialNumber.String())
 	d.Set("archive", base64.StdEncoding.EncodeToString(b))
 
 	return nil
+}
+
+func findBlocksByType(data []byte, t string) []*pem.Block {
+	var blocks []*pem.Block
+
+	for {
+		block, rest := pem.Decode(data)
+		if block == nil {
+			break
+		}
+
+		if block.Type == t {
+			blocks = append(blocks, block)
+		}
+
+		data = rest
+	}
+
+	return blocks
+}
+
+func encodeCertificates(certs ...*x509.Certificate) []byte {
+	var b bytes.Buffer
+
+	for _, cert := range certs {
+		b.Write(pem.EncodeToMemory(&pem.Block{
+			Type:  "CERTIFICATE",
+			Bytes: cert.Raw,
+		}))
+	}
+
+	return b.Bytes()
 }
