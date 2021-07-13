@@ -1,32 +1,45 @@
 package provider
 
 import (
-	"regexp"
+	"io/ioutil"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/resource"
 )
 
 func TestAccDataSourceScaffolding(t *testing.T) {
-	t.Skip("data source not yet implemented, remove this once you add your own code")
+	cert, err := ioutil.ReadFile("./fixtures/cert.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	key, err := ioutil.ReadFile("./fixtures/key.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	resource.UnitTest(t, resource.TestCase{
 		PreCheck:          func() { testAccPreCheck(t) },
 		ProviderFactories: providerFactories,
 		Steps: []resource.TestStep{
 			{
-				Config: testAccDataSourceScaffolding,
+				Config: testAccDataSourceArchive,
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestMatchResourceAttr(
-						"data.scaffolding_data_source.foo", "sample_attribute", regexp.MustCompile("^ba")),
+					resource.TestCheckResourceAttr(
+						"data.pkcs12_archive.from_p12", "certificate", string(cert),
+					),
+					resource.TestCheckResourceAttr(
+						"data.pkcs12_archive.from_p12", "private_key", string(key),
+					),
 				),
 			},
 		},
 	})
 }
 
-const testAccDataSourceScaffolding = `
-data "scaffolding_data_source" "foo" {
-  sample_attribute = "bar"
+const testAccDataSourceArchive = `
+data "pkcs12_archive" "from_p12" {
+  archive = filebase64("fixtures/archive.p12")
+	password = ""
 }
 `
