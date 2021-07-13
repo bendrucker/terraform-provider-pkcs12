@@ -14,14 +14,13 @@ import (
 
 func dataSourceArchive() *schema.Resource {
 	return &schema.Resource{
-		// This description is used by the documentation generator and the language server.
-		Description: "Sample data source in the Terraform provider scaffolding.",
+		Description: "Read the content of a PKCS12 archive or create a new archive by specifying its content",
 
 		ReadContext: dataSourceArchiveRead,
 
 		Schema: map[string]*schema.Schema{
 			"archive": {
-				Description:  "The PKCS12 archive",
+				Description:  "The PKCS12 archive, base64 encoded",
 				Type:         schema.TypeString,
 				Optional:     true,
 				ExactlyOneOf: []string{"certificate"},
