@@ -2,13 +2,14 @@ package provider
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/pem"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"golang.org/x/crypto/pkcs12"
+	"software.sslmate.com/src/go-pkcs12"
 )
 
 func dataSourceArchive() *schema.Resource {
@@ -20,11 +21,11 @@ func dataSourceArchive() *schema.Resource {
 
 		Schema: map[string]*schema.Schema{
 			"archive": {
-				Description:   "The PKCS12 archive",
-				Type:          schema.TypeString,
-				Optional:      true,
-				ConflictsWith: []string{"certificate", "private_key"},
-				Computed:      true,
+				Description:  "The PKCS12 archive",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ExactlyOneOf: []string{"certificate"},
+				Computed:     true,
 			},
 			"password": {
 				Description: "The password for the PKCS12 archive",
@@ -78,7 +79,34 @@ func dataSourceArchiveRead(ctx context.Context, d *schema.ResourceData, meta int
 		})))
 
 		d.SetId(cert.SerialNumber.String())
+		return nil
 	}
+
+	certPem := d.Get("certificate").(string)
+	keyPem := d.Get("private_key").(string)
+
+	certBlock, _ := pem.Decode([]byte(certPem))
+	keyBlock, _ := pem.Decode([]byte(keyPem))
+
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return diag.Errorf("failed to parse certificate: %v", err)
+	}
+
+	key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		return diag.Errorf("failed to parse private key: %v", err)
+	}
+
+	caCerts := []*x509.Certificate{} // TODO: support CA certs
+
+	b, err := pkcs12.Encode(rand.Reader, key, cert, caCerts, password)
+	if err != nil {
+		return diag.Errorf("failed to encode PKCS12 archive: %v", err)
+	}
+
+	d.SetId(cert.SerialNumber.String())
+	d.Set("archive", base64.StdEncoding.EncodeToString(b))
 
 	return nil
 }
