@@ -44,6 +44,7 @@ func dataSourceArchive() *schema.Resource {
 				Optional:     true,
 				RequiredWith: []string{"certificate"},
 				Computed:     true,
+				Sensitive:    true,
 			},
 		},
 	}
