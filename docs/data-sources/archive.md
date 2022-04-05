@@ -19,12 +19,12 @@ data "pkcs12_archive" "from_archive" {
 }
 
 output "certificate" {
-  value = data.pkcs12_archive.certificate
+  value = data.pkcs12_archive.from_archive.certificate
 }
 
 output "private_key" {
   sensitive = true
-  value     = data.pkcs12_archive.private_key
+  value     = data.pkcs12_archive.from_archive.private_key
 }
 
 data "pkcs12_archive" "to_archive" {
@@ -34,7 +34,7 @@ data "pkcs12_archive" "to_archive" {
 }
 
 resource "local_file" "foo" {
-  content_base64 = data.pkcs12_archive.archive
+  content_base64 = data.pkcs12_archive.to_archive.archive
   filename       = "archive.p12"
 }
 ```
