@@ -33,7 +33,7 @@ func dataSourceArchive() *schema.Resource {
 				Required:    true,
 			},
 			"certificate": {
-				Description: "The certificate in PEM format",
+				Description: "The certificate in PEM format. The leaf certificate should be followed by any CA certificates.",
 				Type:        schema.TypeString,
 				Optional:    true,
 				Computed:    true,
