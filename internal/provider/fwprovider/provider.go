@@ -1,6 +1,4 @@
-// Package fwprovider serves the parts of the pkcs12 provider that terraform-plugin-sdk
-// cannot express, currently the ephemeral pkcs12_archive resource. It is muxed with the
-// terraform-plugin-sdk provider in internal/provider so both present as one provider.
+// Package fwprovider serves the parts of the pkcs12 provider that terraform-plugin-sdk cannot express, currently the ephemeral pkcs12_archive resource.
 package fwprovider
 
 import (
