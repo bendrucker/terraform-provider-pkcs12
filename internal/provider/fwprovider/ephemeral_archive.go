@@ -33,20 +33,23 @@ func (e *archiveEphemeralResource) Metadata(ctx context.Context, req ephemeral.M
 
 func (e *archiveEphemeralResource) Schema(ctx context.Context, req ephemeral.SchemaRequest, resp *ephemeral.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		MarkdownDescription: "Read the content of a PKCS12 archive or create a new archive by specifying its content, " +
+		MarkdownDescription: "Read the content of a PKCS #12 archive or create a new archive by specifying its content, " +
 			"without writing the password, the private key, or the archive to Terraform state.\n\n" +
-			"Ephemeral resources are only available in Terraform 1.10 and later, and their attributes can only be " +
-			"referenced from other ephemeral resources, provider configuration, and write-only resource arguments.",
+			"Set `archive` to read an existing archive. Set `certificate` and `private_key` to create a new one.\n\n" +
+			"Ephemeral resources are only available in Terraform 1.10 and later. Their attributes can only be " +
+			"referenced from contexts that Terraform never writes to state, including provider configuration, " +
+			"other ephemeral resources, and `provisioner` and `connection` blocks. Write-only resource arguments " +
+			"accept them starting in Terraform 1.11.",
 
 		Attributes: map[string]schema.Attribute{
 			"archive": schema.StringAttribute{
-				MarkdownDescription: "The PKCS12 archive, base64 encoded",
+				MarkdownDescription: "The PKCS #12 archive, base64 encoded",
 				Optional:            true,
 				Computed:            true,
 				Sensitive:           true,
 			},
 			"password": schema.StringAttribute{
-				MarkdownDescription: "The password for the PKCS12 archive",
+				MarkdownDescription: "The password for the PKCS #12 archive",
 				Required:            true,
 				Sensitive:           true,
 			},
@@ -91,13 +94,13 @@ func (e *archiveEphemeralResource) Open(ctx context.Context, req ephemeral.OpenR
 	if !config.Archive.IsNull() {
 		data, err := base64.StdEncoding.DecodeString(config.Archive.ValueString())
 		if err != nil {
-			resp.Diagnostics.AddAttributeError(path.Root("archive"), "Invalid PKCS12 archive", "Failed to decode archive as base64: "+err.Error())
+			resp.Diagnostics.AddAttributeError(path.Root("archive"), "Invalid PKCS #12 archive", "Failed to decode archive as base64: "+err.Error())
 			return
 		}
 
 		a, err := archive.Decode(data, password)
 		if err != nil {
-			resp.Diagnostics.AddError("Invalid PKCS12 archive", err.Error())
+			resp.Diagnostics.AddError("Invalid PKCS #12 archive", err.Error())
 			return
 		}
 
@@ -112,7 +115,7 @@ func (e *archiveEphemeralResource) Open(ctx context.Context, req ephemeral.OpenR
 
 		data, err := a.Encode(password)
 		if err != nil {
-			resp.Diagnostics.AddError("Invalid PKCS12 archive", err.Error())
+			resp.Diagnostics.AddError("Invalid PKCS #12 archive", err.Error())
 			return
 		}
 

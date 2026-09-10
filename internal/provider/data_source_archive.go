@@ -11,22 +11,24 @@ import (
 
 func dataSourceArchive() *schema.Resource {
 	return &schema.Resource{
-		Description: "Read the content of a PKCS12 archive or create a new archive by specifying its content.\n\n" +
-			"Every attribute of a data source is persisted to Terraform state, including the password. " +
+		Description: "Read the content of a PKCS #12 archive or create a new archive by specifying its content.\n\n" +
+			"Set `archive` to read an existing archive. Set `certificate` and `private_key` to create a new one.\n\n" +
+			"Terraform writes every attribute of a data source to state, including the password. " +
 			"Use the `pkcs12_archive` ephemeral resource to keep the password and the archive contents out of state.",
 
 		ReadContext: dataSourceArchiveRead,
 
 		Schema: map[string]*schema.Schema{
 			"archive": {
-				Description:  "The PKCS12 archive, base64 encoded",
+				Description:  "The PKCS #12 archive, base64 encoded",
 				Type:         schema.TypeString,
 				Optional:     true,
 				ExactlyOneOf: []string{"certificate"},
 				Computed:     true,
+				Sensitive:    true,
 			},
 			"password": {
-				Description: "The password for the PKCS12 archive",
+				Description: "The password for the PKCS #12 archive",
 				Type:        schema.TypeString,
 				Required:    true,
 				Sensitive:   true,

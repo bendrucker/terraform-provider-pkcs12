@@ -3,28 +3,31 @@
 page_title: "pkcs12_archive Ephemeral Resource - terraform-provider-pkcs12"
 subcategory: ""
 description: |-
-  Read the content of a PKCS12 archive or create a new archive by specifying its content, without writing the password, the private key, or the archive to Terraform state.
-  Ephemeral resources are only available in Terraform 1.10 and later, and their attributes can only be referenced from other ephemeral resources, provider configuration, and write-only resource arguments.
+  Read the content of a PKCS #12 archive or create a new archive by specifying its content, without writing the password, the private key, or the archive to Terraform state.
+  Set archive to read an existing archive. Set certificate and private_key to create a new one.
+  Ephemeral resources are only available in Terraform 1.10 and later. Their attributes can only be referenced from contexts that Terraform never writes to state, including provider configuration, other ephemeral resources, and provisioner and connection blocks. Write-only resource arguments accept them starting in Terraform 1.11.
 ---
 
 # pkcs12_archive (Ephemeral Resource)
 
-Read the content of a PKCS12 archive or create a new archive by specifying its content, without writing the password, the private key, or the archive to Terraform state.
+Read the content of a PKCS #12 archive or create a new archive by specifying its content, without writing the password, the private key, or the archive to Terraform state.
 
-Ephemeral resources are only available in Terraform 1.10 and later, and their attributes can only be referenced from other ephemeral resources, provider configuration, and write-only resource arguments.
+Set `archive` to read an existing archive. Set `certificate` and `private_key` to create a new one.
+
+Ephemeral resources are only available in Terraform 1.10 and later. Their attributes can only be referenced from contexts that Terraform never writes to state, including provider configuration, other ephemeral resources, and `provisioner` and `connection` blocks. Write-only resource arguments accept them starting in Terraform 1.11.
 
 ## Example Usage
 
 ```terraform
-# The certificate, private key, and password are not written to Terraform state.
+# The password, the private key, and the archive are never written to Terraform state.
 ephemeral "pkcs12_archive" "client" {
   archive  = filebase64("./client.p12")
   password = var.archive_password
 }
 
-# Ephemeral values can be passed to provider configuration, to write-only resource
-# arguments, and to other ephemeral resources. They cannot be used in outputs or in
-# ordinary resource arguments.
+# Ephemeral values can be referenced from provider configuration, from other ephemeral
+# resources, and from provisioner and connection blocks. They cannot be used in outputs
+# or in ordinary resource arguments.
 provider "kubernetes" {
   host = var.kubernetes_host
 
@@ -32,10 +35,18 @@ provider "kubernetes" {
   client_key         = ephemeral.pkcs12_archive.client.private_key
 }
 
+# Setting certificate and private_key encodes a new archive instead of reading one.
 ephemeral "pkcs12_archive" "bundle" {
   certificate = file("./cert.pem")
   private_key = file("./key.pem")
   password    = var.archive_password
+}
+
+# Write-only arguments also accept ephemeral values, starting in Terraform 1.11.
+resource "aws_secretsmanager_secret_version" "bundle" {
+  secret_id                = aws_secretsmanager_secret.bundle.id
+  secret_string_wo         = ephemeral.pkcs12_archive.bundle.archive
+  secret_string_wo_version = 1
 }
 ```
 
@@ -44,10 +55,10 @@ ephemeral "pkcs12_archive" "bundle" {
 
 ### Required
 
-- `password` (String, Sensitive) The password for the PKCS12 archive
+- `password` (String, Sensitive) The password for the PKCS #12 archive
 
 ### Optional
 
-- `archive` (String, Sensitive) The PKCS12 archive, base64 encoded
+- `archive` (String, Sensitive) The PKCS #12 archive, base64 encoded
 - `certificate` (String) The certificate in PEM format. The leaf certificate should be followed by any CA certificates.
 - `private_key` (String, Sensitive) The private key in PEM format

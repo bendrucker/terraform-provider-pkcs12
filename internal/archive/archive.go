@@ -35,7 +35,7 @@ func (a *Archive) PrivateKey() string {
 func Decode(data []byte, password string) (*Archive, error) {
 	key, cert, cas, err := pkcs12.DecodeChain(data, password)
 	if err != nil {
-		return nil, fmt.Errorf("failed to decode PKCS12 archive: %w", err)
+		return nil, fmt.Errorf("failed to decode PKCS #12 archive: %w", err)
 	}
 
 	return newArchive(append([]*x509.Certificate{cert}, cas...), key)
@@ -93,7 +93,7 @@ func newArchive(certificates []*x509.Certificate, privateKey any) (*Archive, err
 func (a *Archive) Encode(password string) ([]byte, error) {
 	data, err := pkcs12.Encode(rand.Reader, a.privateKey, a.certificates[0], a.certificates[1:], password)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode PKCS12 archive: %w", err)
+		return nil, fmt.Errorf("failed to encode PKCS #12 archive: %w", err)
 	}
 
 	return data, nil
