@@ -14,14 +14,21 @@ import (
 
 // Archive is the certificate chain and private key carried by a PKCS #12 archive.
 type Archive struct {
-	// Certificate is the PEM-encoded certificate chain, leaf certificate first.
-	Certificate string
-
-	// PrivateKey is the PEM-encoded PKCS #8 private key.
-	PrivateKey string
-
 	certificates []*x509.Certificate
 	privateKey   any
+
+	certificatePEM string
+	privateKeyPEM  string
+}
+
+// Certificate returns the PEM-encoded certificate chain, leaf certificate first.
+func (a *Archive) Certificate() string {
+	return a.certificatePEM
+}
+
+// PrivateKey returns the PEM-encoded PKCS #8 private key.
+func (a *Archive) PrivateKey() string {
+	return a.privateKeyPEM
 }
 
 // Decode reads the certificate chain and private key out of a PKCS #12 archive.
@@ -71,14 +78,14 @@ func newArchive(certificates []*x509.Certificate, privateKey any) (*Archive, err
 	}
 
 	return &Archive{
-		Certificate: string(encodeCertificates(certificates...)),
-		PrivateKey: string(pem.EncodeToMemory(&pem.Block{
+		certificates: certificates,
+		privateKey:   privateKey,
+
+		certificatePEM: string(encodeCertificates(certificates...)),
+		privateKeyPEM: string(pem.EncodeToMemory(&pem.Block{
 			Type:  "PRIVATE KEY",
 			Bytes: key,
 		})),
-
-		certificates: certificates,
-		privateKey:   privateKey,
 	}, nil
 }
 

@@ -101,8 +101,8 @@ func (e *archiveEphemeralResource) Open(ctx context.Context, req ephemeral.OpenR
 			return
 		}
 
-		config.Certificate = types.StringValue(a.Certificate)
-		config.PrivateKey = types.StringValue(a.PrivateKey)
+		config.Certificate = types.StringValue(a.Certificate())
+		config.PrivateKey = types.StringValue(a.PrivateKey())
 	} else {
 		a, err := archive.Parse(config.Certificate.ValueString(), config.PrivateKey.ValueString())
 		if err != nil {

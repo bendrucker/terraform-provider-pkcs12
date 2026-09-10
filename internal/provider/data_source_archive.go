@@ -32,10 +32,11 @@ func dataSourceArchive() *schema.Resource {
 				Sensitive:   true,
 			},
 			"certificate": {
-				Description: "The certificate in PEM format. The leaf certificate should be followed by any CA certificates.",
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
+				Description:  "The certificate in PEM format. The leaf certificate should be followed by any CA certificates.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"private_key"},
+				Computed:     true,
 			},
 			"private_key": {
 				Description:  "The private key in PEM format",
@@ -63,8 +64,8 @@ func dataSourceArchiveRead(ctx context.Context, d *schema.ResourceData, meta int
 			return diag.FromErr(err)
 		}
 
-		d.Set("private_key", a.PrivateKey)
-		d.Set("certificate", a.Certificate)
+		d.Set("private_key", a.PrivateKey())
+		d.Set("certificate", a.Certificate())
 
 		d.SetId(a.Serial())
 		return nil

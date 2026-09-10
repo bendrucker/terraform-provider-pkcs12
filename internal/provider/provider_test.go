@@ -5,7 +5,9 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/pem"
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
@@ -40,9 +42,48 @@ func TestProvider(t *testing.T) {
 
 func testAccPreCheck(t *testing.T) {}
 
+// testAccFixturePEM reads the certificate and private key fixtures.
+func testAccFixturePEM(t *testing.T) (certificate, privateKey []byte) {
+	t.Helper()
+
+	certificate, err := os.ReadFile("./fixtures/cert.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	privateKey, err = os.ReadFile("./fixtures/key.pem")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return certificate, privateKey
+}
+
+// testAccFixture parses the certificate and private key fixtures.
+func testAccFixture(t *testing.T) (*x509.Certificate, any) {
+	t.Helper()
+
+	certificatePEM, privateKeyPEM := testAccFixturePEM(t)
+
+	certificateBlock, _ := pem.Decode(certificatePEM)
+	privateKeyBlock, _ := pem.Decode(privateKeyPEM)
+
+	certificate, err := x509.ParseCertificate(certificateBlock.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	privateKey, err := x509.ParsePKCS8PrivateKey(privateKeyBlock.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return certificate, privateKey
+}
+
 // testAccCheckArchive decodes the base64 PKCS12 archive held in attr and asserts that it
 // carries cert and key.
-func testAccCheckArchive(n, attr string, cert *x509.Certificate, key interface{}) resource.TestCheckFunc {
+func testAccCheckArchive(n, attr, password string, cert *x509.Certificate, key any) resource.TestCheckFunc {
 	return func(s *terraform.State) error {
 		rs, ok := s.RootModule().Resources[n]
 		if !ok {
@@ -54,7 +95,7 @@ func testAccCheckArchive(n, attr string, cert *x509.Certificate, key interface{}
 			return fmt.Errorf("Error decoding p12: %s", err)
 		}
 
-		pKey, pCert, err := pkcs12.Decode(p12, "")
+		pKey, pCert, err := pkcs12.Decode(p12, password)
 		if err != nil {
 			return fmt.Errorf("Error decoding p12: %s", err)
 		}
