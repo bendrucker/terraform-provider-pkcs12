@@ -3,19 +3,25 @@
 page_title: "pkcs12_archive Data Source - terraform-provider-pkcs12"
 subcategory: ""
 description: |-
-  Read the content of a PKCS12 archive or create a new archive by specifying its content
+  Read the content of a PKCS #12 archive or create a new archive by specifying its content.
+  Set archive to read an existing archive. Set certificate and private_key to create a new one.
+  Terraform writes every attribute of a data source to state, including the password. Use the pkcs12_archive ephemeral resource to keep the password and the archive contents out of state.
 ---
 
 # pkcs12_archive (Data Source)
 
-Read the content of a PKCS12 archive or create a new archive by specifying its content
+Read the content of a PKCS #12 archive or create a new archive by specifying its content.
+
+Set `archive` to read an existing archive. Set `certificate` and `private_key` to create a new one.
+
+Terraform writes every attribute of a data source to state, including the password. Use the `pkcs12_archive` ephemeral resource to keep the password and the archive contents out of state.
 
 ## Example Usage
 
 ```terraform
 data "pkcs12_archive" "from_archive" {
   archive  = filebase64("./archive.p12")
-  password = ""
+  password = var.archive_password
 }
 
 output "certificate" {
@@ -30,7 +36,7 @@ output "private_key" {
 data "pkcs12_archive" "to_archive" {
   certificate = file("./cert.pem")
   private_key = file("./key.pem")
-  password    = ""
+  password    = var.archive_password
 }
 
 resource "local_file" "foo" {
@@ -44,13 +50,14 @@ resource "local_file" "foo" {
 
 ### Required
 
-- **password** (String) The password for the PKCS12 archive
+- `password` (String, Sensitive) The password for the PKCS #12 archive
 
 ### Optional
 
-- **archive** (String) The PKCS12 archive, base64 encoded
-- **certificate** (String) The certificate in PEM format
-- **id** (String) The ID of this resource.
-- **private_key** (String) The private key in PEM format
+- `archive` (String, Sensitive) The PKCS #12 archive, base64 encoded
+- `certificate` (String) The certificate in PEM format. The leaf certificate should be followed by any CA certificates.
+- `private_key` (String, Sensitive) The private key in PEM format
 
+### Read-Only
 
+- `id` (String) The ID of this resource.

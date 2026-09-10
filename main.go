@@ -6,7 +6,8 @@ import (
 	"log"
 
 	"github.com/bendrucker/terraform-provider-pkcs12/internal/provider"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov5/tf5server"
 )
 
 // Run "go generate" to format example terraform files and generate the docs for the registry/website
@@ -17,7 +18,11 @@ import (
 
 // Run the docs generation tool, check its repository for more information on how it works and how docs
 // can be customized.
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
+// The provider name is passed explicitly because tfplugindocs otherwise infers it from the
+// working directory name, which is wrong in a git worktree.
+//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs generate --provider-name terraform-provider-pkcs12
+
+const address = "registry.terraform.io/bendrucker/pkcs12"
 
 var (
 	// these will be set by the goreleaser configuration
@@ -34,16 +39,17 @@ func main() {
 	flag.BoolVar(&debugMode, "debug", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
 
-	opts := &plugin.ServeOpts{ProviderFunc: provider.New(version)}
-
-	if debugMode {
-		// TODO: update this string with the full name of your provider as used in your configs
-		err := plugin.Debug(context.Background(), "registry.terraform.io/bendrucker/pkcs12", opts)
-		if err != nil {
-			log.Fatal(err.Error())
-		}
-		return
+	server, err := provider.Server(context.Background(), version)
+	if err != nil {
+		log.Fatal(err.Error())
 	}
 
-	plugin.Serve(opts)
+	var opts []tf5server.ServeOpt
+	if debugMode {
+		opts = append(opts, tf5server.WithManagedDebug())
+	}
+
+	if err := tf5server.Serve(address, func() tfprotov5.ProviderServer { return server }, opts...); err != nil {
+		log.Fatal(err.Error())
+	}
 }

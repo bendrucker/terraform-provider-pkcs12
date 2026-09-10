@@ -1,6 +1,6 @@
 data "pkcs12_archive" "from_archive" {
   archive  = filebase64("./archive.p12")
-  password = ""
+  password = var.archive_password
 }
 
 output "certificate" {
@@ -15,7 +15,7 @@ output "private_key" {
 data "pkcs12_archive" "to_archive" {
   certificate = file("./cert.pem")
   private_key = file("./key.pem")
-  password    = ""
+  password    = var.archive_password
 }
 
 resource "local_file" "foo" {

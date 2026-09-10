@@ -1,42 +1,44 @@
 package provider
 
 import (
-	"bytes"
 	"context"
-	"crypto/rand"
-	"crypto/x509"
 	"encoding/base64"
-	"encoding/pem"
 
+	"github.com/bendrucker/terraform-provider-pkcs12/internal/archive"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"software.sslmate.com/src/go-pkcs12"
 )
 
 func dataSourceArchive() *schema.Resource {
 	return &schema.Resource{
-		Description: "Read the content of a PKCS12 archive or create a new archive by specifying its content",
+		Description: "Read the content of a PKCS #12 archive or create a new archive by specifying its content.\n\n" +
+			"Set `archive` to read an existing archive. Set `certificate` and `private_key` to create a new one.\n\n" +
+			"Terraform writes every attribute of a data source to state, including the password. " +
+			"Use the `pkcs12_archive` ephemeral resource to keep the password and the archive contents out of state.",
 
 		ReadContext: dataSourceArchiveRead,
 
 		Schema: map[string]*schema.Schema{
 			"archive": {
-				Description:  "The PKCS12 archive, base64 encoded",
+				Description:  "The PKCS #12 archive, base64 encoded",
 				Type:         schema.TypeString,
 				Optional:     true,
 				ExactlyOneOf: []string{"certificate"},
 				Computed:     true,
+				Sensitive:    true,
 			},
 			"password": {
-				Description: "The password for the PKCS12 archive",
+				Description: "The password for the PKCS #12 archive",
 				Type:        schema.TypeString,
 				Required:    true,
+				Sensitive:   true,
 			},
 			"certificate": {
-				Description: "The certificate in PEM format. The leaf certificate should be followed by any CA certificates.",
-				Type:        schema.TypeString,
-				Optional:    true,
-				Computed:    true,
+				Description:  "The certificate in PEM format. The leaf certificate should be followed by any CA certificates.",
+				Type:         schema.TypeString,
+				Optional:     true,
+				RequiredWith: []string{"private_key"},
+				Computed:     true,
 			},
 			"private_key": {
 				Description:  "The private key in PEM format",
@@ -54,94 +56,35 @@ func dataSourceArchiveRead(ctx context.Context, d *schema.ResourceData, meta int
 	password := d.Get("password").(string)
 
 	if v, ok := d.GetOk("archive"); ok {
-		archive, err := base64.StdEncoding.DecodeString(v.(string))
+		data, err := base64.StdEncoding.DecodeString(v.(string))
 		if err != nil {
 			return diag.Errorf("failed to decode archive as base64: %v", err)
 		}
 
-		key, cert, cas, err := pkcs12.DecodeChain(archive, password)
+		a, err := archive.Decode(data, password)
 		if err != nil {
-			return diag.Errorf("failed to decode PKCS12 archive: %v", err)
+			return diag.FromErr(err)
 		}
 
-		certs := append([]*x509.Certificate{cert}, cas...)
+		d.Set("private_key", a.PrivateKey())
+		d.Set("certificate", a.Certificate())
 
-		keyBytes, err := x509.MarshalPKCS8PrivateKey(key)
-		if err != nil {
-			return diag.Errorf("failed to marshal private key: %v", err)
-		}
-
-		d.Set("private_key", string(pem.EncodeToMemory(&pem.Block{
-			Type:  "PRIVATE KEY",
-			Bytes: keyBytes,
-		})))
-
-		d.Set("certificate", string(encodeCertificates(certs...)))
-
-		d.SetId(cert.SerialNumber.String())
+		d.SetId(a.Serial())
 		return nil
 	}
 
-	certPem := d.Get("certificate").(string)
-	keyPem := d.Get("private_key").(string)
-
-	certs := []*x509.Certificate{}
-
-	for _, block := range findBlocksByType([]byte(certPem), "CERTIFICATE") {
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			return diag.Errorf("failed to parse certificate: %v", err)
-		}
-
-		certs = append(certs, cert)
-	}
-
-	keyBlock, _ := pem.Decode([]byte(keyPem))
-
-	key, err := x509.ParsePKCS8PrivateKey(keyBlock.Bytes)
+	a, err := archive.Parse(d.Get("certificate").(string), d.Get("private_key").(string))
 	if err != nil {
-		return diag.Errorf("failed to parse private key: %v", err)
+		return diag.FromErr(err)
 	}
 
-	b, err := pkcs12.Encode(rand.Reader, key, certs[0], certs[1:], password)
+	data, err := a.Encode(password)
 	if err != nil {
-		return diag.Errorf("failed to encode PKCS12 archive: %v", err)
+		return diag.FromErr(err)
 	}
 
-	d.SetId(certs[0].SerialNumber.String())
-	d.Set("archive", base64.StdEncoding.EncodeToString(b))
+	d.SetId(a.Serial())
+	d.Set("archive", base64.StdEncoding.EncodeToString(data))
 
 	return nil
-}
-
-func findBlocksByType(data []byte, t string) []*pem.Block {
-	var blocks []*pem.Block
-
-	for {
-		block, rest := pem.Decode(data)
-		if block == nil {
-			break
-		}
-
-		if block.Type == t {
-			blocks = append(blocks, block)
-		}
-
-		data = rest
-	}
-
-	return blocks
-}
-
-func encodeCertificates(certs ...*x509.Certificate) []byte {
-	var b bytes.Buffer
-
-	for _, cert := range certs {
-		b.Write(pem.EncodeToMemory(&pem.Block{
-			Type:  "CERTIFICATE",
-			Bytes: cert.Raw,
-		}))
-	}
-
-	return b.Bytes()
 }
