@@ -3,12 +3,15 @@
 page_title: "pkcs12_archive Data Source - terraform-provider-pkcs12"
 subcategory: ""
 description: |-
-  Read the content of a PKCS12 archive or create a new archive by specifying its content
+  Read the content of a PKCS12 archive or create a new archive by specifying its content.
+  Every attribute of a data source is persisted to Terraform state, including the password. Use the pkcs12_archive ephemeral resource to keep the password and the archive contents out of state.
 ---
 
 # pkcs12_archive (Data Source)
 
-Read the content of a PKCS12 archive or create a new archive by specifying its content
+Read the content of a PKCS12 archive or create a new archive by specifying its content.
+
+Every attribute of a data source is persisted to Terraform state, including the password. Use the `pkcs12_archive` ephemeral resource to keep the password and the archive contents out of state.
 
 ## Example Usage
 
@@ -44,13 +47,14 @@ resource "local_file" "foo" {
 
 ### Required
 
-- **password** (String) The password for the PKCS12 archive
+- `password` (String, Sensitive) The password for the PKCS12 archive
 
 ### Optional
 
-- **archive** (String) The PKCS12 archive, base64 encoded
-- **certificate** (String) The certificate in PEM format
-- **id** (String) The ID of this resource.
-- **private_key** (String) The private key in PEM format
+- `archive` (String) The PKCS12 archive, base64 encoded
+- `certificate` (String) The certificate in PEM format. The leaf certificate should be followed by any CA certificates.
+- `private_key` (String, Sensitive) The private key in PEM format
 
+### Read-Only
 
+- `id` (String) The ID of this resource.
